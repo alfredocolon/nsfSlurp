@@ -1,0 +1,105 @@
+%REM
+	Agent Get Server Data
+	Created May 12, 2016 by Al Colon/WESTPALM
+	Description: Slurp data from 14 different mailboxes, and consolidate into this mailbox
+%END REM
+Option Public
+Option Declare
+
+Sub Initialize
+	Const SERVER = "MIS_NOTES_1"
+
+	Dim databases(14) As String
+	databases(1)="d-drive\jmisko\1-16-16\jmisko.nsf"
+	databases(2)="d-drive\jmisko\10-17-15\jmisko.nsf"
+	databases(3)="d-drive\jmisko\11-21-15\jmisko.nsf"
+	databases(4)="d-drive\jmisko\12-16-15\jmisko.nsf"
+	databases(5)="d-drive\jmisko\2-20-16\jmisko.nsf"
+	databases(6)="d-drive\jmisko\3-19-16\jmisko.nsf"
+	databases(7)="d-drive\jmisko\4-16-16\jmisko.nsf"
+	databases(8)="d-drive\jmisko\4-30-16\jmisko.nsf"
+	databases(9)="d-drive\jmisko\5-16-15\jmisko.nsf"
+	databases(10)="d-drive\jmisko\5-7-16\jmisko.nsf"
+	databases(11)="d-drive\jmisko\6-20-15\jmisko.nsf"
+	databases(12)="d-drive\jmisko\7-18-15\jmisko.nsf"
+	databases(13)="d-drive\jmisko\8-28-15\jmisko.nsf"
+	databases(14)="d-drive\jmisko\9-19-15\jmisko.nsf"
+	
+	Open "y:\misc\jmisko_copy.out" For Output As #1
+	
+	Dim s As New NotesSession
+	Dim src As NotesDatabase
+	Dim targ As NotesDatabase
+	Dim filepath As String
+	
+	Dim i As Integer, j As Long, total As Long, temp As String
+	
+	Dim view As NotesView
+	Dim doc As NotesDocument
+	Dim dc As NotesDocumentCollection
+	Dim alldocs As Long
+	Dim numErrors As Integer
+	
+	Set targ = s.Currentdatabase
+	j = 0
+	numErrors = 0
+	
+	On Error GoTo ErrorTrap
+	
+	For i = 1 To 14
+		Set src = New NotesDatabase( SERVER, databases(i))
+		filepath = SERVER & "!!" & databases( i)
+		
+		If src.IsOpen Then			
+			Print #1, Now() & " -- database " filepath & " has been opened"
+			
+			Set dc = src.Alldocuments
+			
+			Set view = src.Getview( "($All)")
+			alldocs = view.Allentries.Count
+			
+			j = 0
+
+			Set doc = dc.Getfirstdocument()
+			While Not(doc Is Nothing)
+				If doc.Isvalid Then
+					j = j + 1
+					Call doc.Copytodatabase( targ)
+
+					Print Now() & " -- Copied document # " & CStr( j) & " of " & CStr( alldocs) _
+					& " from " & filepath
+					
+					Set doc = dc.Getnextdocument( doc)	
+				End If
+getNext:
+			Wend
+			
+			Print #1, Now() & " -- " & CStr( j) & " documents were copied from " & filepath & " to " & targ.Filepath
+			Print #1, ""
+			
+			total = total + j
+			
+			Set src = Nothing
+		Else
+			Print #1, Now() & " -- Database " & filepath & " did not get opened"
+			Print #1, ""
+		End If
+	Next i
+	
+	temp = "Grand total of " & CStr( total) & " documents were copied"
+	Print temp 
+	Print #1, temp
+	Close #1
+	
+ProgramOver:
+	MsgBox "Program over"
+	Exit Sub
+	
+ErrorTrap:
+	numErrors = numErrors + 1
+	Print #1, "Tracking error number " & CStr(Err) & " at line " & CStr(Erl) & " -- " & Error$
+	If numErrors > 100 Then Resume ProgramOver  ' just bail if too many errors encountered
+	
+	Print #1, "Resuming to getNext"
+	Resume getNext
+End Sub
