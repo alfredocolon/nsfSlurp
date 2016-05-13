@@ -1,0 +1,123 @@
+Sub Click(Source As Button)
+	Dim counter As Integer
+	
+	Const OUTFILE = "c:\users\acolon\expand.out.txt"
+	Dim groupName As String, rc As Integer
+	Dim s As String, members As Variant
+	
+	s = "ALL Employees"
+	counter = 0
+	
+	groupName = Inputbox("Enter the name of the group:", "", s)
+	If Trim$(groupName) = "" Then Exit Sub
+	
+	Open OUTFILE For Output As #1
+	Print #1, "Start time: " & Now()
+	
+	members = getMembers( groupName)
+	Forall e In members
+		Call resolveGroup( Cstr(e), counter)
+	End Forall
+	
+	Print #1, "End time: " & Now()	
+	Close #1
+	
+	rc = Shell("notepad.exe " + outfile, 5)
+End Sub
+
+Sub resolveGroup( s As String, counter As Integer)
+	Dim var, tmp As String
+	Dim nname As NotesName
+	
+	tmp = Cstr(s)
+	
+	If isPerson( tmp) Then
+		counter = counter + 1
+		Set nname = New NotesName( tmp)
+		
+		Print #1, Cstr(counter) & "," & nname.Common
+	Elseif isGroup( tmp) Then
+		var = getMembers( tmp)
+		
+		Forall i In var
+			Call resolveGroup( Cstr(i), counter)			
+		End Forall
+	End If
+End Sub
+
+Function getMembers( s As String) As Variant
+	' Const SERVER = "MIS_WPB"
+	Const SERVER = ""
+	
+	Dim session As New NotesSession
+	
+	Dim db As NotesDatabase
+	Dim view As NotesView
+	Dim dc As NotesDocumentCollection
+	
+	Set db = New NotesDatabase(SERVER, "names.nsf")
+	Set view = db.GetView("($VIMGroups)")
+	
+	getMembers = Null
+	
+	Set dc = view.GetAllDocumentsByKey( s, True)
+	If dc.Count = 1 Then
+		Set doc = dc.GetFirstDocument
+		getMembers = doc.Members
+	End If
+End Function
+
+Function isPerson( s As String) As Boolean
+	' Const SERVER = "MIS_WPB"
+	Const SERVER = ""
+	
+	Dim session As New NotesSession
+	
+	Dim db As NotesDatabase
+	Dim view As NotesView
+	Dim doc As NotesDocument
+	Dim dc As NotesDocumentCollection
+	
+	isPerson = False
+	
+	Set db = New NotesDatabase(SERVER, "names.nsf")
+	Set view = db.GetView( "($Users)")
+	
+	Set dc = view.GetAllDocumentsByKey( s, True)
+	If dc.Count = 1 Then
+		Set doc = dc.GetFirstDocument
+		If doc.GetItemValue("Form")(0) = "Person" Then isPerson = True
+	End If
+End Function
+
+Function isGroup( s As String) As Boolean
+	' Const SERVER = "MIS_WPB"
+	Const SERVER = ""
+	
+	Dim session As New NotesSession
+	
+	Dim db As NotesDatabase
+	Dim view As NotesView
+	Dim doc As NotesDocument
+	Dim dc As NotesDocumentCollection
+	
+	isGroup = False
+	
+	Set db = New NotesDatabase(SERVER, "names.nsf")
+	Set view = db.GetView( "($VIMGroups)")
+	
+	Set dc = view.GetAllDocumentsByKey( s, True)
+	If dc.Count = 1 Then
+		isGroup = True
+	End If
+End Function
+
+
+
+
+
+
+
+
+
+
